@@ -4,11 +4,11 @@ extern crate rand;
 use ggez::{conf, event, graphics, Context, ContextBuilder, GameResult};
 use rand::{thread_rng, Rng};
 
-const HEIGHT: u32 = 600;
-const WIDTH: u32 = 800;
+const HEIGHT: usize = 600;
+const WIDTH: usize = 800;
 const SCALE: usize = 5;
-const ROWS: usize = (HEIGHT as usize / SCALE);
-const COLS: usize = (WIDTH as usize / SCALE);
+const ROWS: usize = (HEIGHT / SCALE);
+const COLS: usize = (WIDTH / SCALE);
 const MAX_COLOR: usize = 35;
 const COLORS: [RGB; 36] = [
     RGB(7, 7, 7),
@@ -131,7 +131,6 @@ fn spread_fire(target_y: usize, target_x: usize, fire_grid: &mut FireGrid) {
     // fire pixel visited by this iteration
     let mut target_fire_pixel = &mut fire_grid[target_y][target_x];
     let decay: usize = thread_rng().gen_range(0, 2);
-    // let decay: usize = 1;
     target_fire_pixel.index = match src_index.checked_sub(decay) {
         Some(new_index) => new_index,
         None => 0,
@@ -159,7 +158,7 @@ impl event::EventHandler for State {
                 graphics::set_color(ctx, color.into())?;
                 let rect = graphics::Rect {
                     x: (x_pos * SCALE) as f32,
-                    y: (y_pos * SCALE) as f32,
+                    y: ((ROWS - y_pos) * SCALE) as f32, // render upside down
                     w: SCALE as f32,
                     h: SCALE as f32,
                 };
@@ -174,7 +173,7 @@ impl event::EventHandler for State {
 pub fn main() -> GameResult<()> {
     let cb = ContextBuilder::new("doom-fire", "tilacog")
         .window_setup(conf::WindowSetup::default().title("doom-fire"))
-        .window_mode(conf::WindowMode::default().dimensions(WIDTH, HEIGHT));
+        .window_mode(conf::WindowMode::default().dimensions(WIDTH as u32, HEIGHT as u32));
     let mut ctx = cb.build()?;
     let mut state = State::new();
     event::run(&mut ctx, &mut state)
