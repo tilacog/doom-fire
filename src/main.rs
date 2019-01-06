@@ -95,12 +95,43 @@ impl State {
 }
 
 fn spread_fire(target_y: usize, target_x: usize, fire_grid: &mut FireGrid) {
+    // heat source
     let src_index = {
-        let source_fire_pixel = &fire_grid[target_y - 1][target_x];
+        /* heat can go sideways, so we accept the following ranges:
+        - y: [-1, 0]
+        - x: [-1, +1] (must check boundaries)
+        */
+        let source_x = {
+            let modifier: i8 = thread_rng().gen_range(-1, 2);
+            match modifier {
+                -1 => {
+                    if target_x == 0 {
+                        COLS - 1
+                    } else {
+                        target_x - 1
+                    }
+                }
+                0 => target_x,
+                1 => {
+                    if target_x == COLS - 1 {
+                        0
+                    } else {
+                        target_x + 1
+                    }
+                }
+                _ => unreachable!(),
+            }
+        };
+        let source_y = target_y - thread_rng().gen_range(0, 2);
+
+        let source_fire_pixel = &fire_grid[source_y][source_x];
         source_fire_pixel.index
     };
+
+    // fire pixel visited by this iteration
     let mut target_fire_pixel = &mut fire_grid[target_y][target_x];
-    let decay: usize = thread_rng().gen_range(1, 5);
+    let decay: usize = thread_rng().gen_range(0, 2);
+    // let decay: usize = 1;
     target_fire_pixel.index = match src_index.checked_sub(decay) {
         Some(new_index) => new_index,
         None => 0,
@@ -108,7 +139,7 @@ fn spread_fire(target_y: usize, target_x: usize, fire_grid: &mut FireGrid) {
 }
 
 impl event::EventHandler for State {
-    fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
+    fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
         for y_pos in 1..ROWS {
             for x_pos in 0..COLS {
                 spread_fire(y_pos, x_pos, &mut self.fire_grid)
