@@ -4,9 +4,10 @@ use ggez::{conf, event, graphics, Context, ContextBuilder, GameResult};
 
 const HEIGHT: u32 = 600;
 const WIDTH: u32 = 800;
-const SCALE: u32 = 5;
-const ROWS: u32 = HEIGHT / SCALE;
-const COLS: u32 = WIDTH / SCALE;
+const SCALE: usize = 5;
+const ROWS: usize = (HEIGHT as usize / SCALE);
+const COLS: usize = (WIDTH as usize / SCALE);
+const MAX_COLOR: usize = 35;
 const COLORS: [RGB; 36] = [
     RGB(7, 7, 7),
     RGB(31, 7, 7),
@@ -65,18 +66,25 @@ impl FirePixel {
     }
 }
 
+type FireGrid = Vec<Vec<FirePixel>>;
+
 struct State {
-    fire_grid: Vec<Vec<FirePixel>>,
+    fire_grid: FireGrid,
 }
 
 impl State {
-    /// Initialize a new state with a 0-indexed fire grid
+    /// Initialize a new state with a fire grid where all `FirePixel`s are black (index == 0), except for the first row,
+    /// where all `FirePixels` are at full heat (index = MAX_COLOR).
     fn new() -> State {
-        let mut rows: Vec<Vec<FirePixel>> = Vec::with_capacity(ROWS as usize);
-        for _ in 0..ROWS {
+        let mut rows: FireGrid = Vec::with_capacity(ROWS as usize);
+        for row_idx in 0..ROWS {
             let mut row: Vec<FirePixel> = Vec::with_capacity(COLS as usize);
             for _ in 0..COLS {
-                row.push(FirePixel::new())
+                let mut fire_pixel = FirePixel::new();
+                if row_idx == 0 {
+                    fire_pixel.index = MAX_COLOR
+                }
+                row.push(fire_pixel)
             }
             rows.push(row);
         }
@@ -84,27 +92,35 @@ impl State {
     }
 }
 
+fn spread_fire(target_y: usize, target_x: usize, fire_grid: &mut FireGrid) {
+    let src_index = {
+        let source_fire_pixel = &fire_grid[target_y - 1][target_x];
+        source_fire_pixel.index
+    };
+    let mut target_fire_pixel = &mut fire_grid[target_y][target_x];
+    if src_index > 0 {
+        target_fire_pixel.index = src_index - 1
+    }
+}
+
 impl event::EventHandler for State {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
+        for y_pos in 1..ROWS {
+            for x_pos in 0..COLS {
+                spread_fire(y_pos, x_pos, &mut self.fire_grid)
+            }
+        }
         Ok(())
     }
+
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
         graphics::set_background_color(ctx, graphics::BLACK);
 
-        // TODO: use a real heat-spreading system.
-        // this `acc` variable is just a hack to help understand how to paint the screen.
-        let mut acc = 0;
-
         for y_pos in 0..ROWS {
             for x_pos in 0..COLS {
-                let fire_pixel = &self.fire_grid[y_pos as usize][x_pos as usize];
-                let color = {
-                    // TODO: remove this acc stuff
-                    let i = acc + y_pos;
-                    let index = if i > 35 { 0 } else { 35 - i };
-                    &COLORS[index as usize]
-                };
+                let fire_pixel = &self.fire_grid[y_pos][x_pos];
+                let color = &COLORS[fire_pixel.index];
                 graphics::set_color(ctx, color.into())?;
                 let rect = graphics::Rect {
                     x: (x_pos * SCALE) as f32,
@@ -114,7 +130,6 @@ impl event::EventHandler for State {
                 };
                 graphics::rectangle(ctx, graphics::DrawMode::Fill, rect)?
             }
-            acc += 1; // TODO: remove this acc stuff
         }
         graphics::present(ctx);
         Ok(())
