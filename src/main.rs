@@ -1,6 +1,8 @@
 extern crate ggez;
+extern crate rand;
 
 use ggez::{conf, event, graphics, Context, ContextBuilder, GameResult};
+use rand::{thread_rng, Rng};
 
 const HEIGHT: u32 = 600;
 const WIDTH: u32 = 800;
@@ -98,8 +100,10 @@ fn spread_fire(target_y: usize, target_x: usize, fire_grid: &mut FireGrid) {
         source_fire_pixel.index
     };
     let mut target_fire_pixel = &mut fire_grid[target_y][target_x];
-    if src_index > 0 {
-        target_fire_pixel.index = src_index - 1
+    let decay: usize = thread_rng().gen_range(1, 5);
+    target_fire_pixel.index = match src_index.checked_sub(decay) {
+        Some(new_index) => new_index,
+        None => 0,
     }
 }
 
