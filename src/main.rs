@@ -4,7 +4,7 @@ use ggez::{conf, event, graphics, Context, ContextBuilder, GameResult};
 
 const HEIGHT: u32 = 600;
 const WIDTH: u32 = 800;
-const SCALE: u32 = 20;
+const SCALE: u32 = 5;
 const ROWS: u32 = HEIGHT / SCALE;
 const COLS: u32 = WIDTH / SCALE;
 const COLORS: [RGB; 36] = [
@@ -48,8 +48,15 @@ const COLORS: [RGB; 36] = [
 
 struct RGB(u8, u8, u8);
 
+impl Into<graphics::Color> for &RGB {
+    fn into(self) -> graphics::Color {
+        let RGB(r, g, b) = self;
+        graphics::Color::from_rgb(*r, *g, *b)
+    }
+}
+
 struct FirePixel {
-    index: u8,
+    index: usize,
 }
 
 impl FirePixel {
@@ -84,17 +91,31 @@ impl event::EventHandler for State {
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
         graphics::set_background_color(ctx, graphics::BLACK);
-        graphics::set_color(ctx, graphics::WHITE)?;
-        graphics::rectangle(
-            ctx,
-            graphics::DrawMode::Fill,
-            graphics::Rect {
-                x: (WIDTH / 2) as f32,
-                y: (HEIGHT / 2) as f32,
-                w: SCALE as f32,
-                h: SCALE as f32,
-            },
-        )?;
+
+        // TODO: use a real heat-spreading system.
+        // this `acc` variable is just a hack to help understand how to paint the screen.
+        let mut acc = 0;
+
+        for y_pos in 0..ROWS {
+            for x_pos in 0..COLS {
+                let fire_pixel = &self.fire_grid[y_pos as usize][x_pos as usize];
+                let color = {
+                    // TODO: remove this acc stuff
+                    let i = acc + y_pos;
+                    let index = if i > 35 { 0 } else { 35 - i };
+                    &COLORS[index as usize]
+                };
+                graphics::set_color(ctx, color.into())?;
+                let rect = graphics::Rect {
+                    x: (x_pos * SCALE) as f32,
+                    y: (y_pos * SCALE) as f32,
+                    w: SCALE as f32,
+                    h: SCALE as f32,
+                };
+                graphics::rectangle(ctx, graphics::DrawMode::Fill, rect)?
+            }
+            acc += 1; // TODO: remove this acc stuff
+        }
         graphics::present(ctx);
         Ok(())
     }
